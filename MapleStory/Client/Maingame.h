@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+
 class CMaingame
 {
 
@@ -26,7 +27,8 @@ public:
 	void Release(void);
 	static int recvn(SOCKET, char*, int, int);
 	static DWORD WINAPI RecvThread(LPVOID);
-
+public:
+	void InitializeNetwork(void);
 private:
 	HDC		m_hDC;
 };

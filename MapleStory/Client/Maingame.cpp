@@ -4,6 +4,7 @@
 #include "Fire.h"
 #include "Field.h"
 #include "Stage1.h"
+#include <mutex>
 
 SOCKET g_sock;
 char buf[BUFSIZE];	// 데이터 버퍼
@@ -34,35 +35,14 @@ void CMaingame::Initialize(void)
 	freopen("CONOUT$", "wt", stdout);
 
 	// 관련 이미지 로드
-	CBitmapMgr::GetInstance()->GetMapBit().insert(make_pair(
-		L"Back", (new CMyBmp)->LoadBmp(L"../Image/Back.bmp")));
-	CBitmapMgr::GetInstance()->GetMapBit().insert(make_pair(
-		L"BackBuffer", (new CMyBmp)->LoadBmp(L"../Image/BackBuffer.bmp")));
+	CBitmapMgr::GetInstance()->GetMapBit().insert(make_pair(L"Back", (new CMyBmp)->LoadBmp(L"../Image/Back.bmp")));
+	CBitmapMgr::GetInstance()->GetMapBit().insert(make_pair(L"BackBuffer", (new CMyBmp)->LoadBmp(L"../Image/BackBuffer.bmp")));
 
-	// 씬 바꾸기 (Logo로)
+	// 씬 전환 (->Logo)
 	CSceneMgr::GetInstance()->SetScene(SCENE_LOGO);
-
 	CollisionMgr::InitWELLRNG512((unsigned long)time(NULL));
 
-	//-------------------------------------------------------------------------------
-	// 서버 추가
-	WSADATA wsa;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-		return;
-
-	g_sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (g_sock == INVALID_SOCKET) // 생성 실패시
-		MessageBoxW(g_hWnd, L"socket()", MB_OK, MB_OK);
-
-	hThread = CreateThread(NULL, 0, RecvThread, (LPVOID)g_sock, 0, NULL);
-	if (NULL == hThread)	 
-		CloseHandle(hThread);	
-
-	for(int i = 0; i < MAX_USER; ++i)
-		g_vecplayer.emplace_back(PLAYERINFO());
-
-	for (int i = 0; i < g_vecplayer.size(); ++i)
-		g_vecplayer[i].id = -1;
+	InitializeNetwork();
 }
 
 void CMaingame::Update(void)
@@ -92,7 +72,7 @@ void CMaingame::Release(void)
 	CSceneMgr::GetInstance()->DestroyInstance();
 	ReleaseDC(g_hWnd, m_hDC);
 
-	// 프로그램 종료전 서버에 알려주기
+	// 프로그램 종료 서버에 알리기
 	char buf[BUFSIZE] = {};
 	PACKETINFO packetinfo;
 	packetinfo.id = g_myid;
@@ -115,9 +95,8 @@ DWORD WINAPI CMaingame::RecvThread(LPVOID arg)
 
 	while (true) {
 
-		// 아이디 부여 받기 전이면 ㄴㄴ.
 		m.lock();
-		if (-1 == g_myid) {
+		if (-1 == g_myid) { 
 			m.unlock();
 			continue;
 		}
@@ -271,33 +250,52 @@ DWORD WINAPI CMaingame::RecvThread(LPVOID arg)
 			// 서버로부터 스킬 생성 명령을 받았다.
 			// 1. 가변 길이 패킷을 받아온다.
 			SKILLINFO skillinfo = {};
-			{
-				ZeroMemory(buf, BUFSIZE);
-				int retval = recvn(g_sock, buf, BUFSIZE, 0);
-				if (retval == SOCKET_ERROR) {
-					MessageBox(g_hWnd, L"recvn()", L"recvn() - SC_PACKET_SKILL_CREATE", NULL);
-					break;
-				}
-				else
-					memcpy(&skillinfo, buf, sizeof(skillinfo));
-			}
-			// 무슨 스킬인지 알아낸 후, 타입에 맞게 객체를 생성한다.
-			{
-				CObj* pSkill = nullptr;
-				switch (skillinfo.type) {
-				case SKILL_FIRE:
-				{
-					CObjMgr::GetInstance()->AddObject(CreateSkill<CFire>(skillinfo.pt, g_vecplayer[packetinfo.id].dir), OBJ_SKILL_FIRE);
-				}
+			ZeroMemory(buf, BUFSIZE);
+			int retval = recvn(g_sock, buf, BUFSIZE, 0);
+			if (retval == SOCKET_ERROR) {
+				MessageBox(g_hWnd, L"recvn()", L"recvn() - SC_PACKET_SKILL_CREATE", NULL);
 				break;
-				}
 			}
+			else
+				memcpy(&skillinfo, buf, sizeof(skillinfo));
+
+			// 무슨 스킬인지 알아낸 후, 타입에 맞게 객체를 생성한다.
+			CObj* pSkill = nullptr;
+			switch (skillinfo.type) {
+			case SKILL_FIRE:
+			{
+				CObjMgr::GetInstance()->AddObject(CreateSkill<CFire>(skillinfo.pt, g_vecplayer[packetinfo.id].dir), OBJ_SKILL_FIRE);
+			}
+			break;
+			}
+
 		}
 		break;
 		}
 	}
 
 	return 0;
+}
+
+void CMaingame::InitializeNetwork(void)
+{
+	WSADATA wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+		return;
+
+	g_sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (g_sock == INVALID_SOCKET) // 생성 실패시
+		MessageBoxW(g_hWnd, L"socket()", MB_OK, MB_OK);
+
+	hThread = CreateThread(NULL, 0, RecvThread, (LPVOID)g_sock, 0, NULL);
+	if (NULL == hThread)
+		CloseHandle(hThread);
+
+	for (int i = 0; i < MAX_USER; ++i)
+		g_vecplayer.emplace_back(PLAYERINFO());
+
+	for (int i = 0; i < g_vecplayer.size(); ++i)
+		g_vecplayer[i].id = -1;
 }
 
 int CMaingame::recvn(SOCKET s, char *buf, int len, int flags)
