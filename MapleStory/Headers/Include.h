@@ -17,8 +17,8 @@ using namespace std;
 #include "Define.h"
 #include "Struct.h"
 #include "Extern.h"
-#include "Function.h"
 #include "Functor.h"
 #include "Typedef.h"
+#include "Function.h"
 
 

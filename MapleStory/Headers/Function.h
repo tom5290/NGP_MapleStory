@@ -10,6 +10,7 @@ void SafeDelete(T& obj)
 	}
 }
 
+
 void err_quit(const char *msg)
 {
 	LPVOID lpMsgBuf;

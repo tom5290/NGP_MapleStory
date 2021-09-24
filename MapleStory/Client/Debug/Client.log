@@ -1,4 +1,0 @@
-﻿  Maingame.cpp
-D:\kpu\지난 학기\NGP\portfolio(non_anno)\MapleStory\Client\Maingame.cpp(64,20): warning C4018: '<': signed 또는 unsigned가 일치하지 않습니다.
-D:\kpu\지난 학기\NGP\portfolio(non_anno)\MapleStory\Client\Maingame.cpp(34,2): warning C4996: 'freopen': This function or variable may be unsafe. Consider using freopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-  Client.vcxproj -> D:\kpu\지난 학기\NGP\portfolio(non_anno)\MapleStory\Debug\Client.exe
