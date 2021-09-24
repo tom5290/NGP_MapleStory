@@ -8,8 +8,6 @@
 #include "Fire.h"
 #include "Wing.h"
 
-// 스레드 동기화
-CRITICAL_SECTION cs2;
 
 bool g_bIsSend = false;
 
@@ -29,31 +27,12 @@ CPlayer::~CPlayer(void)
 
 void CPlayer::Initialize(void)
 {
-	// 서버 추가.
-	{
-		// if (내가 조종 중인 클라이언트라면) {
-	//		MakingPlayer에서 g_vecplayer[g_myid]에 playerinfo를 받았다.
-	//		g_vecplayer[g_myid]로부터 CPlayer::m_playerinfo를 최초 한번 받아 와야 한다.
-	// }
-	// else if (내가 조종할 수 없는, 다른 클라이언트라면) { 
-	//		MakingPlayer에서 g_vecplayer[다른 클라이언트 id]에 playerinfo를 받았다.
-	//		g_vecplayer[다른 클라이언트 id]로부터 CPlayer::m_playerinfo를 최초 한번 받아 와야 한다.
-
-	// --------------- Process -------------------
-		if (!m_IsMaster) {
-			if (g_myid == 0)
-				g_vecplayer[g_myid + 1].job = m_playerinfo.job;
-			else if (g_myid == 1)
-				g_vecplayer[g_myid - 1].job = m_playerinfo.job;
-		}
+	if (!m_IsMaster) {
+		if (g_myid == 0)
+			g_vecplayer[g_myid + 1].job = m_playerinfo.job;
+		else if (g_myid == 1)
+			g_vecplayer[g_myid - 1].job = m_playerinfo.job;
 	}
-
-	// 임계 영역 초기화
-	InitializeCriticalSection(&cs2);
-
-	//// 이 부분은 이제 안 해도 될듯..?
-	//m_tInfo.pt.x = 100.f;
-	//m_tInfo.pt.y = 500.f;
 
 	m_tInfo.size.cx = 100.f;
 	m_tInfo.size.cy = 100.f;
@@ -109,18 +88,8 @@ void CPlayer::Initialize(void)
 
 	m_eRenderType = RENDER_OBJ;
 
-	// 레벨업 이펙트
-	//m_tLevelUpFrame.iFrameStart = 0;
-	//m_tLevelUpFrame.iFrameEnd = 20;
-	//m_tLevelUpFrame.iScene = 0;
-	//m_tLevelUpFrame.dwFrameSpd = 150;
-
-	//m_dwLevelUpCurTime = 0;
-	//m_dwLevelUpOldTime = GetTickCount();
-
 	UpdateCollRect();
 
-	// HP, Exp, MP Bar 생성
 	CObjMgr::GetInstance()->AddObject(CreateHpBar<CPlayerHP>(), OBJ_HPBAR);
 	CObjMgr::GetInstance()->AddObject(CreateExpBar<CPlayerExp>(), OBJ_HPBAR);
 	CObjMgr::GetInstance()->AddObject(CreateMpBar<CPlayerMP>(), OBJ_HPBAR);
@@ -128,11 +97,8 @@ void CPlayer::Initialize(void)
 
 int CPlayer::Update(void)
 {
-	// 죽으면 오브젝트 삭제
 	if (true == m_bIsDead)	return 1;
-
-	// UpdateINFOinPLAYERINFO();
-	 
+ 
 	if (m_IsMaster) {
 		KeyCheck();
 		FrameMove();
@@ -142,26 +108,16 @@ int CPlayer::Update(void)
 		LineCollision();
 		InChangingScene();
 	}
-	else {
 
-	}
 	Jump();
 	InInvincible();
 
 
 	int id = WhatIsID();
-	UpdateImageInJob(g_vecplayer[id].dir); // 이제 키 입력 받을 때뿐만 아니라, 계속해서 이미지 업데이트 해줘야 함.
+	UpdateImageInJob(g_vecplayer[id].dir); 
 
-	// 조종 가능한 클라이언트일 때만 계속 보내는 걸로.
-	/// 계속해서 보내니까 부하 생기고 키 입력도 안 받아지넹..
-	//if (/*m_IsMaster*/1) {
-	//	g_bIsSend = true;
-	//}
-
-	if(m_IsMaster)	// 키 입력 받아서 보내는건 조종 가능한 클라이언트일 때만 보내는 것임.
-		SendMovePacket(); 	// move 할 때마다 서버에게 MOVE_PACKET을 보낸다.
-	// m_tInfo를 계속 쓰되, 서버에서 계속 갱신될 playerinfo를 기준으로 업데이트 해 줘야 한다.
-
+	if(m_IsMaster)	
+		SendMovePacket(); 	
 
 	CObj::UpdateRect();
 	UpdateCollRect();
@@ -680,8 +636,6 @@ void CPlayer::UpdateCollRect()
 
 void CPlayer::Release(void)
 {
-	// 임계 영역 삭제
-	DeleteCriticalSection(&cs2);
 }
 
 void CPlayer::LineCollision()
@@ -716,34 +670,25 @@ bool b = true;	// 디버깅 용
 
 void CPlayer::SendMovePacket()
 {
-	//m_bIsAdmitSend_inFrame = !m_bIsAdmitSend_inFrame;
-	//if (!m_bIsAdmitSend_inFrame) {
-	//	return;
-	//}
 
-	// Server에게 내 playerinfo를 send한다. (CS_PACKET_PLAYERINFO_MOVE)
 	if (g_bIsSend) {
 		g_bIsSend = false;
 
-		// 내가 조종 중인 클라이언트인지, 다른 클라이언트인지 구분.
 		int id = WhatIsID();
 
 		b = !b;
-		// ----------------------Progress-------------------------
-		// 1. 클라의 g_vecplayer[g_myid]에 정보를 갱신한다. 
+
 		g_vecplayer[id].pt.x = m_tInfo.pt.x;
 		g_vecplayer[id].pt.y = m_tInfo.pt.y;
 		g_vecplayer[id].frame = m_tFrame;
 		g_vecplayer[id].state = m_eCurState;
 		g_vecplayer[id].prestate = m_ePreState;
 		g_vecplayer[id].dir = m_eDir;
-		// 2. 보낼 공간 playerinfo를 만든다.
-		PLAYERINFO playerinfo;
-		// 3. playerinfo에 내 위치, frame 정보, state를 담는다.
-		memcpy(&playerinfo, &(g_vecplayer[id]), sizeof(PLAYERINFO));
-		// 4. playerinfo를 서버에 send 한다.
-		char buf[BUFSIZE] = {};
-		// 고정 길이
+
+
+
+		char buf[BUFSIZE];
+
 		PACKETINFO packetinfo;
 		packetinfo.id = id;
 		packetinfo.size = sizeof(PLAYERINFO);
@@ -752,16 +697,17 @@ void CPlayer::SendMovePacket()
 		int retval = send(g_sock, buf, BUFSIZE, 0);
 		if (retval == SOCKET_ERROR) {
 			MessageBox(g_hWnd, L"send()", L"send - 고정 - CS_PACKET_PLAYERINFO_MOVE", MB_OK);
-			g_bIsProgramEnd = true;	// 프로그램 종료
+			g_bIsProgramEnd = true;	
 		}
 
-		// 가변 길이
+		PLAYERINFO playerinfo;
+		memcpy(&playerinfo, &(g_vecplayer[id]), sizeof(PLAYERINFO));
 		ZeroMemory(buf, sizeof(buf));
 		memcpy(buf, &playerinfo, sizeof(playerinfo));
 		retval = send(g_sock, buf, BUFSIZE, 0);
 		if (retval == SOCKET_ERROR) {
 			MessageBox(g_hWnd, L"send()", L"send - 가변 - CS_PACKET_PLAYERINFO_MOVE", MB_OK);
-			g_bIsProgramEnd = true;	// 프로그램 종료
+			g_bIsProgramEnd = true;	
 		}
 
 	}

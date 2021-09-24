@@ -54,10 +54,10 @@ int CLeaf::Update(void)
 
 	if (PtInRect(&m_tRect, pt2) && m_bIsActivated == false)
 	{
-		if (CKeyMgr::GetInstance()->OnceKeyDown(VK_LBUTTON) && m_bIsActivated == false)
+		if (CKeyMgr::GetInstance()->OnceKeyUp(VK_LBUTTON) && m_bIsActivated == false)
 			m_bIsActivated = true;
 
-		if (!CKeyMgr::GetInstance()->OnceKeyDown(VK_LBUTTON) && m_bIsActivated == true)
+		if (!CKeyMgr::GetInstance()->OnceKeyUp(VK_LBUTTON) && m_bIsActivated == true)
 		{
 			CObjMgr::GetInstance()->AddObject(CreateCommunication<CLeafCommunication>(), OBJ_UI);
 			m_bIsActivated = false;
