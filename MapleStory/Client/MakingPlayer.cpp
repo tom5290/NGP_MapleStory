@@ -80,11 +80,12 @@ int CMakingPlayer::Update()
 
 	if (PtInRect(&rcMake, pt2)) {
 		if (KEYMGR->OnceKeyUp(VK_LBUTTON)) {
-			char buf[BUFSIZE];
 			// 캐릭터 생성 버튼을 눌렀으면,
 
 			// 1. 직업과 닉네임 정보가 채워진 playerinfo를 서버에 send 한다.   
 			while(true){
+				char buf[BUFSIZE + 1];
+
 				// 입력 받은 id를 tempplayerinfo.id에 갱신한다.
 				char* pStr;
 				int strSize = WideCharToMultiByte(CP_ACP, 0, g_nicknamebuf, -1, NULL, 0, NULL, NULL);
@@ -97,6 +98,7 @@ int CMakingPlayer::Update()
 				packetinfo.type = CS_PACKET_PLAYERINFO_INITIALLY;
 				packetinfo.size = sizeof(tempplayerinfo);
 				memcpy(buf, &packetinfo, sizeof(packetinfo));
+
 				int retval = send(g_sock, buf, BUFSIZE, 0);
 				if (retval == SOCKET_ERROR) {
 					err_display("send() - 고정 - PLAYERINFO_INITIALLY");
@@ -120,6 +122,7 @@ int CMakingPlayer::Update()
 
 			// 2. 나머지 멤버 변수들이 채워진 playerinfo를 받는다. (여기서 id도 받는다.)
 			while(true){
+				char buf[BUFSIZE + 1];
 				PACKETINFO temppacketinfo;
 				PLAYERINFO tempplayerinfo;
 				// 고정 길이. 

@@ -145,9 +145,9 @@ int CPlayer::Update(void)
 	else {
 
 	}
-
 	Jump();
 	InInvincible();
+
 
 	int id = WhatIsID();
 	UpdateImageInJob(g_vecplayer[id].dir); // 이제 키 입력 받을 때뿐만 아니라, 계속해서 이미지 업데이트 해줘야 함.
@@ -502,6 +502,7 @@ void CPlayer::KeyCheck()
 			m_eCurState = PLAYER_STAND;
 			g_vecplayer[id].state = PLAYER_STAND;
 		}
+		g_bIsSend = false;
 	}
 
 	if(CKeyMgr::GetInstance()->OnceKeyUp(VK_SPACE) && !m_bIsPressed)
@@ -594,7 +595,7 @@ void CPlayer::FrameMove()
 		++(m_tFrame.iFrameStart);
 		m_dwFrameOldTime = m_dwFrameCurTime;
 
-		g_bIsSend = true;
+//		g_bIsSend = true;
 	}
 
 	if (m_eCurState == PLAYER_DAMAGED)
@@ -720,7 +721,6 @@ void CPlayer::SendMovePacket()
 	//	return;
 	//}
 
-	// 1201.
 	// Server에게 내 playerinfo를 send한다. (CS_PACKET_PLAYERINFO_MOVE)
 	if (g_bIsSend) {
 		g_bIsSend = false;
@@ -729,53 +729,41 @@ void CPlayer::SendMovePacket()
 		int id = WhatIsID();
 
 		b = !b;
-//		cout << "Server에게 내 playerinfo를 send" << b << endl;
-
-		// 1. 클라의 g_vecplayer[g_myid]에 정보를 갱신한다. 
-		// 2. 보낼 공간 playerinfo를 만든다.
-		// 3. playerinfo에 내 위치, frame 정보, state를 담는다.
-		// 4. playerinfo를 서버에 send 한다.
-
 		// ----------------------Progress-------------------------
 		// 1. 클라의 g_vecplayer[g_myid]에 정보를 갱신한다. 
-		{
-			g_vecplayer[id].pt.x = m_tInfo.pt.x;
-			g_vecplayer[id].pt.y = m_tInfo.pt.y;
-			g_vecplayer[id].frame = m_tFrame;
-			g_vecplayer[id].state = m_eCurState;
-			g_vecplayer[id].prestate = m_ePreState;
-			g_vecplayer[id].dir = m_eDir;
-		}
+		g_vecplayer[id].pt.x = m_tInfo.pt.x;
+		g_vecplayer[id].pt.y = m_tInfo.pt.y;
+		g_vecplayer[id].frame = m_tFrame;
+		g_vecplayer[id].state = m_eCurState;
+		g_vecplayer[id].prestate = m_ePreState;
+		g_vecplayer[id].dir = m_eDir;
 		// 2. 보낼 공간 playerinfo를 만든다.
 		PLAYERINFO playerinfo;
 		// 3. playerinfo에 내 위치, frame 정보, state를 담는다.
-		{
-			memcpy(&playerinfo, &(g_vecplayer[id]), sizeof(PLAYERINFO));
-		}
+		memcpy(&playerinfo, &(g_vecplayer[id]), sizeof(PLAYERINFO));
 		// 4. playerinfo를 서버에 send 한다.
-		{
-			char buf[BUFSIZE] = {};
-			// 고정 길이
-			PACKETINFO packetinfo;
-			packetinfo.id = id;
-			packetinfo.size = sizeof(PLAYERINFO);
-			packetinfo.type = CS_PACKET_PLAYERINFO_MOVE;
-			memcpy(buf, &packetinfo, sizeof(packetinfo));
-			int retval = send(g_sock, buf, BUFSIZE, 0);
-			if (retval == SOCKET_ERROR) {
-				MessageBox(g_hWnd, L"send()", L"send - 고정 - CS_PACKET_PLAYERINFO_MOVE", MB_OK);
-				g_bIsProgramEnd = true;	// 프로그램 종료
-			}
-
-			// 가변 길이
-			ZeroMemory(buf, sizeof(buf));
-			memcpy(buf, &playerinfo, sizeof(playerinfo));
-			retval = send(g_sock, buf, BUFSIZE, 0);
-			if (retval == SOCKET_ERROR) {
-				MessageBox(g_hWnd, L"send()", L"send - 가변 - CS_PACKET_PLAYERINFO_MOVE", MB_OK);
-				g_bIsProgramEnd = true;	// 프로그램 종료
-			}
+		char buf[BUFSIZE] = {};
+		// 고정 길이
+		PACKETINFO packetinfo;
+		packetinfo.id = id;
+		packetinfo.size = sizeof(PLAYERINFO);
+		packetinfo.type = CS_PACKET_PLAYERINFO_MOVE;
+		memcpy(buf, &packetinfo, sizeof(packetinfo));
+		int retval = send(g_sock, buf, BUFSIZE, 0);
+		if (retval == SOCKET_ERROR) {
+			MessageBox(g_hWnd, L"send()", L"send - 고정 - CS_PACKET_PLAYERINFO_MOVE", MB_OK);
+			g_bIsProgramEnd = true;	// 프로그램 종료
 		}
+
+		// 가변 길이
+		ZeroMemory(buf, sizeof(buf));
+		memcpy(buf, &playerinfo, sizeof(playerinfo));
+		retval = send(g_sock, buf, BUFSIZE, 0);
+		if (retval == SOCKET_ERROR) {
+			MessageBox(g_hWnd, L"send()", L"send - 가변 - CS_PACKET_PLAYERINFO_MOVE", MB_OK);
+			g_bIsProgramEnd = true;	// 프로그램 종료
+		}
+
 	}
 }
 
